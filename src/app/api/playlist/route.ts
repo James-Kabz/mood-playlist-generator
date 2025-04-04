@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { v4 as uuidv4 } from "uuid"
 import { authOptions } from "@/lib/auth/auth"
 import { createPlaylist } from "@/lib/playlists/create-playlist"
+import { v4 as uuidv4 } from "uuid"
 
 export async function POST(request: NextRequest) {
   try {

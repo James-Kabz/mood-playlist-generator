@@ -2,8 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Toaster } from "@/components/ui/sonner"
 import { NextAuthProvider } from "../components/auth/next-auth-provider"
+import { SonnerProvider } from "@/components/sonner-provider"
 
 
 const inter = Inter({ subsets: ["latin"] })
@@ -24,7 +24,7 @@ export default function RootLayout({
         <NextAuthProvider>
           {/* <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange> */}
             {children}
-            <Toaster />
+            <SonnerProvider />
           {/* </ThemeProvider> */}
         </NextAuthProvider>
       </body>
