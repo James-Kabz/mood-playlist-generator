@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { createPlaylist } from "@/lib/playlists/create-playlist"
 import { toast } from "@/lib/toast"
 import { useSession } from "next-auth/react"
-import type { MoodAnalysis } from "@/lib/mood/analyze-mood"
+import type { MoodAnalysis } from "@/lib/types"
 
 export function MoodAnalyzer() {
   const [moodText, setMoodText] = useState("")
@@ -35,7 +35,7 @@ export function MoodAnalyzer() {
     try {
       // Try Gemini first, fall back to DeepSeek if that fails
       let response
-      let moodAnalysis
+      let moodAnalysis: MoodAnalysis
 
       try {
         response = await fetch("/api/analyze-mood", {

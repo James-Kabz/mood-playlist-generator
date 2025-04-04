@@ -4,7 +4,8 @@ const nextConfig = {
     domains: [
       'mosaic.scdn.co',
       'i.scdn.co',
-      'image-cdn-ak.spotifycdn.com'
+      'image-cdn-ak.spotifycdn.com',
+      'image-cdn-fa.spotifycdn.com'
     ],
   },
 }

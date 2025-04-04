@@ -1,19 +1,9 @@
 import { getSession } from "next-auth/react"
+import type { Session, PlaylistSummary, Playlist } from "../types"
 
-interface Playlist {
-    id:string
-    name:string
-    description:string
-    coverImage:string
-    createdAt:Date
-    images:{
-        url?:string
-    }[];
-    added_at?:Date
-}
-export async function getUserPlaylists() {
+export async function getUserPlaylists(): Promise<PlaylistSummary[]> {
   try {
-    const session = await getSession()
+    const session = (await getSession()) as Session | null
 
     if (!session?.user?.id) {
       // Return guest playlists from localStorage if available
@@ -22,40 +12,26 @@ export async function getUserPlaylists() {
         return guestPlaylists.map((playlist: Playlist) => ({
           id: playlist.id,
           name: playlist.name,
-          description: playlist.description,
-          coverImage: playlist.coverImage,
+          description: playlist.description || "No description",
+          coverImage: playlist.coverImage || "/placeholder.svg?height=200&width=200",
           createdAt: new Date(playlist.createdAt).toLocaleDateString(),
         }))
       }
       return []
     }
 
-    // For authenticated users, fetch playlists from Spotify API
-    if (session?.accessToken) {
-      try {
-        const response = await fetch("https://api.spotify.com/v1/me/playlists", {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-          },
-        })
+    // For authenticated users, fetch playlists from our API endpoint
+    try {
+      const response = await fetch("/api/user/playlists")
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch playlists from Spotify")
-        }
-
-        const data = await response.json()
-
-        return data.items.map((playlist: Playlist) => ({
-          id: playlist.id,
-          name: playlist.name,
-          description: playlist.description || "No description",
-          coverImage: playlist.images[0]?.url || "/placeholder.svg?height=200&width=200",
-          createdAt: new Date(playlist.added_at || Date.now()).toLocaleDateString(),
-        }))
-      } catch (error) {
-        console.error("Error fetching Spotify playlists:", error)
-        // Fall back to mock data
+      if (!response.ok) {
+        throw new Error("Failed to fetch playlists from API")
       }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching playlists from API:", error)
+      // Fall back to mock data
     }
 
     // Fallback mock data

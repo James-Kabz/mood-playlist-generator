@@ -6,12 +6,11 @@ import { Play, ExternalLink, Heart, Clock, Shuffle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSearchParams } from "next/navigation"
-
+import { getPlaylist } from "@/lib/playlists/get-playlist"
+import { savePlaylist } from "@/lib/playlists/save-playlist"
+import { toast } from "@/lib/toast"
 import { useSession } from "next-auth/react"
 import { signIn } from "next-auth/react"
-import { savePlaylist } from "@/lib/playlists/save-playlist"
-import { getPlaylist } from "@/lib/playlists/get-playlist"
-import { toast } from "sonner"
 
 type Track = {
   id: string
@@ -32,12 +31,18 @@ type Playlist = {
   spotifyUrl: string
 }
 
-export function PlaylistDisplay() {
+interface PlaylistDisplayProps {
+  id?: string // Optional ID prop from route params
+}
+
+export function PlaylistDisplay({ id: propId }: PlaylistDisplayProps = {}) {
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const searchParams = useSearchParams()
-  const playlistId = searchParams.get("id")
+
+  // Try to get ID from props first (route params), then from search params
+  const playlistId = propId || searchParams.get("id")
   const { data: session } = useSession()
 
   useEffect(() => {
@@ -49,8 +54,10 @@ export function PlaylistDisplay() {
         })
         .catch((error) => {
           console.error("Error fetching playlist:", error)
-          toast.error("Failed to load playlist",{
+          toast({
+            title: "Failed to load playlist",
             description: "We couldn't load the playlist. Please try again.",
+            variant: "error",
           })
         })
         .finally(() => {
@@ -64,8 +71,10 @@ export function PlaylistDisplay() {
 
     if (!session?.user) {
       // Prompt to sign in with Spotify
-      toast.info("Authentication required",{
+      toast({
+        title: "Authentication required",
         description: "Please connect with Spotify to save playlists",
+        variant: "info",
       })
       signIn("spotify", { callbackUrl: window.location.href })
       return
@@ -74,13 +83,17 @@ export function PlaylistDisplay() {
     setIsSaving(true)
     try {
       await savePlaylist(playlist.id)
-      toast.success("Playlist saved",{
+      toast({
+        title: "Playlist saved",
         description: "The playlist has been saved to your account",
+        variant: "success",
       })
     } catch (error) {
       console.error("Error saving playlist:", error)
-      toast.error("Failed to save playlist",{
+      toast({
+        title: "Failed to save playlist",
         description: "We couldn't save the playlist. Please try again.",
+        variant: "error",
       })
     } finally {
       setIsSaving(false)
@@ -88,19 +101,31 @@ export function PlaylistDisplay() {
   }
 
   const handlePlayOnSpotify = () => {
+    if (!playlist) return
+
+    if (playlist.spotifyUrl && playlist.spotifyUrl !== "#") {
+      // If we have a valid Spotify URL, open it
+      window.open(playlist.spotifyUrl, "_blank")
+      return
+    }
+
     if (!session?.user) {
       // Prompt to sign in with Spotify
-      toast.info("Authentication required",{
+      toast({
+        title: "Authentication required",
         description: "Please connect with Spotify to play on Spotify",
-
+        variant: "info",
       })
       signIn("spotify", { callbackUrl: window.location.href })
       return
     }
 
-    if (playlist?.spotifyUrl && playlist.spotifyUrl !== "#") {
-      window.open(playlist.spotifyUrl, "_blank")
-    }
+    // If we're here, the user is logged in but we don't have a valid Spotify URL
+    toast({
+      title: "Spotify playback unavailable",
+      description: "This playlist was created in guest mode and isn't available on Spotify yet. Try saving it first.",
+      variant: "warning",
+    })
   }
 
   if (!playlistId) {

@@ -3,15 +3,21 @@ import type { User } from "next-auth"
 import SpotifyProvider from "next-auth/providers/spotify"
 import type { JWT } from "next-auth/jwt"
 
-// Spotify scopes for API access
+// Spotify scopes for API access - expanded to include more permissions
 const scopes = [
   "user-read-email",
   "user-read-private",
   "playlist-read-private",
+  "playlist-read-collaborative",
   "playlist-modify-public",
   "playlist-modify-private",
   "user-library-read",
   "user-library-modify",
+  "user-top-read",
+  "user-read-recently-played",
+  "streaming",
+  "user-follow-read",
+  "user-follow-modify",
 ].join(" ")
 
 // Function to refresh the access token when it expires
@@ -37,8 +43,11 @@ async function refreshAccessToken(token: JWT) {
     const data = await response.json()
 
     if (!response.ok) {
+      console.error("Error refreshing token:", data)
       throw data
     }
+
+    console.log("Token refreshed successfully")
 
     return {
       ...token,
@@ -69,6 +78,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account, user }) {
       // Initial sign in
       if (account && user) {
+        console.log("Initial sign in, setting token with account data")
         return {
           ...token,
           accessToken: account.access_token,
@@ -84,6 +94,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Access token has expired, refresh it
+      console.log("Token expired, refreshing...")
       return refreshAccessToken(token)
     },
     async session({ session, token }) {
@@ -91,7 +102,7 @@ export const authOptions: NextAuthOptions = {
         session.accessToken = token.accessToken as string
         session.refreshToken = token.refreshToken as string
         session.error = token.error as string | undefined
-    
+
         // Add user ID to the session
         if (token.user) {
           session.user = {
@@ -103,12 +114,18 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
+  debug: process.env.NODE_ENV === "development",
   pages: {
     signIn: "/",
     error: "/",
   },
   session: {
     strategy: "jwt",
+    maxAge: 60 * 60, // 1 hour
   },
 }
+
+// For compatibility with both import styles
+import NextAuth from "next-auth"
+export const { auth, signIn, signOut } = NextAuth(authOptions)
 
