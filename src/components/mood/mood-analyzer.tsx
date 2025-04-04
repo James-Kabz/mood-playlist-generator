@@ -7,10 +7,10 @@ import { useRouter } from "next/navigation"
 import { Music, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { useSession } from "next-auth/react"
-import { analyzeMood } from "@/lib/mood/analyze-mood"
 import { createPlaylist } from "@/lib/playlists/create-playlist"
-import { toast } from "sonner"
+import { toast } from "@/lib/toast"
+import { useSession } from "next-auth/react"
+import type { MoodAnalysis } from "@/lib/mood/analyze-mood"
 
 export function MoodAnalyzer() {
   const [moodText, setMoodText] = useState("")
@@ -22,8 +22,10 @@ export function MoodAnalyzer() {
     e.preventDefault()
 
     if (!moodText.trim()) {
-      toast.info( "Please describe your mood",{
+      toast({
+        title: "Please describe your mood",
         description: "We need some text to analyze your mood",
+        variant: "error",
       })
       return
     }
@@ -31,8 +33,45 @@ export function MoodAnalyzer() {
     setIsAnalyzing(true)
 
     try {
-      // Analyze the mood using AI
-      const moodAnalysis = await analyzeMood(moodText)
+      // Try Gemini first, fall back to DeepSeek if that fails
+      let response
+      let moodAnalysis
+
+      try {
+        response = await fetch("/api/analyze-mood", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: moodText }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Gemini API failed")
+        }
+
+        moodAnalysis = (await response.json()) as MoodAnalysis
+      } catch (error) {
+        toast({
+          title: "Please describe your mood",
+          description: `We need some text to analyze your mood "${error}" `,
+          variant: "error",
+        })
+        console.log("Falling back to DeepSeek API")
+        response = await fetch("/api/analyze-mood-deepseek", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: moodText }),
+        })
+
+        if (!response.ok) {
+          throw new Error("All AI APIs failed")
+        }
+
+        moodAnalysis = (await response.json()) as MoodAnalysis
+      }
 
       // Create a playlist based on the mood
       const playlist = await createPlaylist(moodAnalysis, session?.user?.id)
@@ -47,16 +86,20 @@ export function MoodAnalyzer() {
         localStorage.setItem("guestPlaylists", JSON.stringify(localPlaylists))
       }
 
-      toast.success("Playlist created!",{
+      toast({
+        title: "Playlist created!",
         description: `Your "${playlist.name}" playlist is ready`,
+        variant: "success",
       })
 
       // Redirect to the playlist page
       router.push(`/playlist/${playlist.id}`)
     } catch (error) {
       console.error("Error creating playlist:", error)
-      toast.error("Something went wrong",{
+      toast({
+        title: "Something went wrong",
         description: "We couldn't create your playlist. Please try again.",
+        variant: "error",
       })
     } finally {
       setIsAnalyzing(false)
@@ -70,7 +113,7 @@ export function MoodAnalyzer() {
           placeholder="Describe your mood or vibe... (e.g., 'Feeling energetic and ready to workout' or 'Need something calm to help me focus')"
           className="min-h-[120px] bg-neutral-800 border-neutral-600 resize-none text-white placeholder:text-neutral-400"
           value={moodText}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMoodText(e.target.value)}
+          onChange={(e) => setMoodText(e.target.value)}
           disabled={isAnalyzing}
         />
 

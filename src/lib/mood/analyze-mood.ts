@@ -1,4 +1,4 @@
-import openai from "../openai/openai"
+import openai from "../gemini/gemini"
 
 
 
